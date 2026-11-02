@@ -1,4 +1,37 @@
+# Build output and packaged releases
 .build/
 build/
-.DS_Store
+*.dmg
+*.zip
+
+# Swift Package Manager / Xcode
 .swiftpm/
+*.xcodeproj/
+xcuserdata/
+DerivedData/
+
+# Editors and macOS
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Local config, credentials and signing material
+.env*
+*.p12
+*.cer
+*.mobileprovision
+*.provisionprofile
+
+# AI assistant files
+.claude/
+CLAUDE.md
+
+# Logo sources: only the app icon, menu bar icon and README logo are needed
+MouseFlow-Logo/*
+!MouseFlow-Logo/MouseFlow.icns
+!MouseFlow-Logo/MenuBarIcon.imageset/
+MouseFlow-Logo/MenuBarIcon.imageset/Contents.json
+!MouseFlow-Logo/PNG/
+MouseFlow-Logo/PNG/*
+!MouseFlow-Logo/PNG/MouseFlow-256.png
