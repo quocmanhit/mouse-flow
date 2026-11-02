@@ -1,34 +1,124 @@
-# MouseFlow
+<p align="center">
+  <img src="MouseFlow-Logo/PNG/MouseFlow-256.png" width="128" alt="MouseFlow icon">
+</p>
 
-App thanh menu cho macOS: cuộn mượt và đảo chiều cuộn riêng cho chuột có con lăn nấc, không đụng tới trackpad.
+<h1 align="center">MouseFlow</h1>
 
-## Chạy
+<p align="center">A lightweight macOS menu bar app for smooth wheel scrolling and per-app mouse button mapping.</p>
+
+MouseFlow makes a regular notched-wheel mouse feel like a trackpad: scrolling glides smoothly, the scroll direction
+can be reversed for the mouse alone, and the middle and side buttons can trigger different shortcuts in each app.
+Trackpads and Magic Mouse are left untouched.
+
+## Features
+
+- **Smooth scrolling** for notched mouse wheels, with adjustable speed and smoothness.
+- **Reverse scroll direction** for the mouse only, so the trackpad keeps natural scrolling.
+- **Fast scroll**: hold a modifier key (⌥ Option by default) to multiply the scroll distance by ×2, ×3 or ×5.
+- **Per-app button mapping**: assign the middle button and side buttons (buttons 2–4) to a keyboard shortcut or a
+  system action (Show Desktop, switch Space, Mission Control, App Windows), either for every app or per app.
+- **Native button bypass**: hold a modifier key (⌃ Control by default) while clicking to skip the mapping and get the
+  button's original behaviour, e.g. Back/Forward in Chrome.
+- **Launch at login** from the menu.
+- Close to zero CPU when idle.
+
+## Requirements
+
+- macOS 14 Sonoma or later
+- Xcode Command Line Tools (Swift 5.10+) to build
+
+## Build and install
 
 ```bash
-make run      # build, ký, cài vào ~/Applications và mở app
+git clone git@github.com:quocmanhit/mouse-flow.git
+cd mouse-flow
+make run
 ```
 
-Lần đầu macOS sẽ hỏi quyền Accessibility (System Settings → Privacy & Security → Accessibility).
-Sau khi bật, app tự chạy, không cần mở lại.
+`make run` builds a release binary, packages it as `MouseFlow.app`, signs it, installs it to `~/Applications` and
+launches it.
 
-`open ~/Applications/MouseFlow.app --args --trial` chạy thử 60 giây rồi tự thoát, dùng khi thử bản build mới.
-Không chạy cùng Mos hay app cuộn mượt khác: hai event tap giành cùng một sự kiện lăn.
+The app is signed with the `Apple Development` identity by default so the Accessibility permission survives
+rebuilds. Without that identity, use an ad-hoc signature (you will need to grant the permission again after every
+build):
 
-Cần Command Line Tools (Swift 5.10+), macOS 14+. Mặc định ký bằng identity `Apple Development` để quyền
-Accessibility không mất sau mỗi lần build; không có thì `make run SIGN_ID=-` (phải cấp lại quyền mỗi lần build).
+```bash
+make run SIGN_ID=-
+```
 
-## Cách hoạt động
+Other targets: `make build`, `make app`, `make install`, `make clean`.
 
-- `ScrollEngine` đặt một `CGEventTap` ở tầng annotated session (lúc hệ thống đã chọn app đích). Sự kiện liên
-  tục (trackpad, Magic Mouse) được để nguyên; sự kiện từng nấc của chuột bị chặn lại, cộng dồn quãng đường rồi
-  phát ra dần theo nhịp màn hình (`CADisplayLink`) với đường cong ease-out.
-- Mỗi frame là bản copy của sự kiện gốc gửi thẳng tới app đích bằng `postToPid`. Post lại vào session tap hoặc
-  tap sớm hơn (sự kiện chưa có đích) thì app không nhận được.
-- Giữ phím cuộn nhanh (mặc định ⌥ Option) để nhân quãng đường; phím này bị gỡ khỏi sự kiện gửi đi để app không
-  hiểu thành Option+scroll.
-- `ButtonMapper` bắt click con lăn và nút bên hông (button 2–4). Nếu app đang focus (hoặc "Mọi app") có gán phím
-  tắt thì nuốt cú click và gửi phím tắt; không gán thì giữ nguyên. Cấu hình ở "Cài đặt nút chuột…" trên menu,
-  lưu trong `UserDefaults`. Nút gán cho phím tắt hệ thống (vd Mission Control) phải bỏ gán trong System Settings
-  trước, vì macOS xử lý chúng trước event tap.
-- Khi không cuộn, display link tạm dừng nên app gần như không dùng CPU.
-- Cài đặt (tốc độ, độ mượt, đảo chiều) lưu trong `UserDefaults`.
+### Permissions
+
+On first launch macOS asks for **Accessibility** access (System Settings → Privacy & Security → Accessibility).
+Once it is granted, MouseFlow starts on its own; there is no need to relaunch it.
+
+### Trial run
+
+```bash
+open ~/Applications/MouseFlow.app --args --trial
+```
+
+Runs for 60 seconds and then quits, which is handy for testing a new build without risking a stuck mouse.
+
+## Usage
+
+Click the mouse icon in the menu bar:
+
+| Menu item | What it does |
+| --- | --- |
+| Smooth scrolling | Turn smooth scrolling on or off |
+| Reverse mouse scrolling | Reverse the wheel direction for the mouse only |
+| Speed / Smoothness | Scroll distance per notch and glide duration |
+| Hold key to scroll fast / Fast scroll factor | Modifier key and multiplier for fast scrolling |
+| Mouse button settings… | Map buttons for every app or for specific apps |
+| Hold key for native buttons | Modifier key that bypasses button mappings |
+| Launch at login | Start MouseFlow with macOS |
+
+The menu labels are currently in Vietnamese; the table above lists them in English.
+
+### Button mapping notes
+
+- An app's own mapping wins over the "every app" mapping. Choose "keep native behaviour" in an app to opt it out of a
+  global mapping.
+- Shortcuts are sent to the frontmost app.
+- If a button is already bound to a system shortcut (for example Mission Control in System Settings → Keyboard
+  Shortcuts), unbind it there first, because macOS handles those before MouseFlow sees the click.
+- Mouse software such as Logi Options+ or Razer Synapse that remaps buttons to keystrokes takes precedence, since
+  MouseFlow only sees mouse button events.
+
+## How it works
+
+- `ScrollEngine` installs a `CGEventTap` at the annotated session level, after the system has picked the target app.
+  Continuous events (trackpad, Magic Mouse) pass through unchanged. Line-based wheel events are swallowed, their
+  distance is accumulated and then replayed frame by frame on a `CADisplayLink` with an ease-out curve.
+- Each frame is a copy of the original event posted directly to the target app with `postToPid`. Posting back into the
+  session tap, or into an earlier tap before the event has a target, never reaches the app.
+- The fast-scroll modifier is removed from the posted events so apps don't treat them as Option+scroll.
+- `ButtonMapper` taps `otherMouseDown/Dragged/Up`. When the frontmost app (or "every app") has a mapping for the
+  button, the click is swallowed and the shortcut is sent instead; otherwise the click passes through. When the bypass
+  modifier is held, the click passes through with that modifier removed.
+- The display link pauses when there is nothing to scroll, so the app stays idle.
+- Settings and button mappings are stored in `UserDefaults`.
+
+## Known limitations
+
+- Don't run MouseFlow together with Mos or another smooth-scrolling app: both event taps compete for the same wheel
+  events.
+- Mappings apply to every connected mouse; MouseFlow can't tell devices apart.
+- Only buttons 2–4 (middle, back, forward) can be mapped.
+
+## Project layout
+
+```
+Sources/MouseFlow/
+  AppDelegate.swift     menu bar item and menu
+  ScrollEngine.swift    smooth scrolling event tap
+  ButtonMapper.swift    mouse button event tap
+  Mappings.swift        shortcuts, system actions and mapping store
+  Settings.swift        scroll and modifier settings
+  SettingsWindow.swift  button mapping window (SwiftUI)
+  KeyRecorder.swift     shortcut recorder
+Resources/Info.plist
+MouseFlow-Logo/         app icon (.icns, PNG, SVG) and menu bar template icon
+```

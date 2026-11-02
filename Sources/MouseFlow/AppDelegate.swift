@@ -23,7 +23,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "computermouse", accessibilityDescription: "MouseFlow")
+        statusItem.button?.image = Self.menuBarIcon()
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
@@ -33,6 +33,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         if CommandLine.arguments.contains("--trial") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 60) { NSApp.terminate(nil) }
         }
+    }
+
+    // The bundled icon only exists in the packaged app; `swift run` falls back to an SF Symbol.
+    private static func menuBarIcon() -> NSImage? {
+        guard let icon = NSImage(named: "MenuBarIconTemplate") else {
+            return NSImage(systemSymbolName: "computermouse", accessibilityDescription: "MouseFlow")
+        }
+        icon.isTemplate = true
+        icon.size = NSSize(width: 18, height: 18)
+        icon.accessibilityDescription = "MouseFlow"
+        return icon
     }
 
     func applicationWillTerminate(_ notification: Notification) {
