@@ -103,3 +103,7 @@ permission again after each build.
   can't leave the mouse stuck.
 
 See [docs/how-it-works.md](docs/how-it-works.md) for how scrolling and button mapping are implemented.
+
+## License
+
+[MIT](LICENSE) © 2026 Quốc Mạnh
