@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 enum SettingsWindow {
     static func make(store: MappingStore) -> NSWindow {
         let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(store: store)))
-        window.title = "Nút chuột"
+        window.title = tr("Mouse Buttons", "Nút chuột")
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.isReleasedWhenClosed = false
         window.center()
@@ -18,11 +18,13 @@ private enum Target: Hashable {
     case app(String)
 }
 
-private let mouseButtons: [(number: Int, title: String)] = [
-    (2, "Click con lăn"),
-    (3, "Nút bên hông (button 3)"),
-    (4, "Nút bên hông (button 4)"),
-]
+private var mouseButtons: [(number: Int, title: String)] {
+    [
+        (2, tr("Wheel click", "Click con lăn")),
+        (3, tr("Side button (button 3)", "Nút bên hông (button 3)")),
+        (4, tr("Side button (button 4)", "Nút bên hông (button 4)")),
+    ]
+}
 
 private struct SettingsView: View {
     @ObservedObject var store: MappingStore
@@ -51,8 +53,8 @@ private struct SettingsView: View {
     private var sidebar: some View {
         VStack(spacing: 0) {
             List(selection: $selection) {
-                Label("Mọi app (mặc định)", systemImage: "square.grid.2x2").tag(Target.defaults)
-                Section("Theo app") {
+                Label(tr("All apps (default)", "Mọi app (mặc định)"), systemImage: "square.grid.2x2").tag(Target.defaults)
+                Section(tr("Per app", "Theo app")) {
                     ForEach(apps, id: \.id) { app in
                         Label { Text(app.mapping.name) } icon: { AppIcon(bundleID: app.id) }
                             .tag(Target.app(app.id))
@@ -68,14 +70,14 @@ private struct SettingsView: View {
                         }
                     }
                     Divider()
-                    Button("Chọn app khác…", action: pickApp)
+                    Button(tr("Choose another app…", "Chọn app khác…"), action: pickApp)
                 } label: {
                     Image(systemName: "plus")
                 }
                 .menuStyle(.borderlessButton)
                 .menuIndicator(.hidden)
                 .fixedSize()
-                .help("Thêm app")
+                .help(tr("Add app", "Thêm app"))
                 Button {
                     if case .app(let id) = selection {
                         store.mappings.apps[id] = nil
@@ -86,7 +88,7 @@ private struct SettingsView: View {
                 }
                 .buttonStyle(.borderless)
                 .disabled(selection == .defaults || selection == nil)
-                .help("Xoá app")
+                .help(tr("Remove app", "Xoá app"))
                 Spacer()
             }
             .padding(8)
@@ -113,7 +115,10 @@ private struct SettingsView: View {
             }
             .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(nsColor: .separatorColor)))
-            Text("Bấm một nút trên chuột để xem nó là dòng nào. Phím F trên bàn phím có thể đang là phím media; giữ fn khi ghi, hoặc chọn trong Phím đơn.")
+            Text(tr(
+                "Press a mouse button to see which row it is. F-keys may act as media keys; hold fn while recording, or pick one under Single keys.",
+                "Bấm một nút trên chuột để xem nó là dòng nào. Phím F trên bàn phím có thể đang là phím media; giữ fn khi ghi, hoặc chọn trong Phím đơn."
+            ))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         }
@@ -123,20 +128,24 @@ private struct SettingsView: View {
     private var title: String {
         switch selection {
         case .app(let id): store.mappings.apps[id]?.name ?? id
-        default: "Mọi app"
+        default: tr("All apps", "Mọi app")
         }
     }
 
     private var subtitle: String {
         switch selection {
-        case .app: "Nút chưa gán ở đây sẽ dùng thiết lập của Mọi app."
-        default: "Áp dụng cho mọi app chưa có thiết lập riêng. Nút chưa gán giữ nguyên chức năng."
+        case .app: tr("Buttons left unassigned here use the All apps settings.", "Nút chưa gán ở đây sẽ dùng thiết lập của Mọi app.")
+        default: tr(
+            "Applies to every app without its own settings. Unassigned buttons keep their normal behaviour.",
+            "Áp dụng cho mọi app chưa có thiết lập riêng. Nút chưa gán giữ nguyên chức năng."
+        )
         }
     }
 
     private func placeholder(_ button: Int) -> String {
-        guard case .app = selection else { return "Giữ nguyên" }
-        return "Theo mặc định (\(store.mappings.defaults[String(button)]?.title ?? "giữ nguyên"))"
+        guard case .app = selection else { return tr("Unchanged", "Giữ nguyên") }
+        let fallback = store.mappings.defaults[String(button)]?.title ?? tr("unchanged", "giữ nguyên")
+        return tr("Default (\(fallback))", "Theo mặc định (\(fallback))")
     }
 
     private func binding(_ button: Int) -> Binding<MouseAction?> {
@@ -212,29 +221,30 @@ private struct Preset {
         shortcut = Shortcut(keyCode: keyCode, modifiers: flags.rawValue)
     }
 
-    static let common: [Preset] = [
-        Preset("Sao chép", 8, .maskCommand),
-        Preset("Dán", 9, .maskCommand),
-        Preset("Cắt", 7, .maskCommand),
-        Preset("Hoàn tác", 6, .maskCommand),
-        Preset("Làm lại", 6, [.maskShift, .maskCommand]),
-        Preset("Chọn tất cả", 0, .maskCommand),
-        Preset("Lưu", 1, .maskCommand),
-        Preset("Tìm", 3, .maskCommand),
-        Preset("Quay lại", 33, .maskCommand),
-        Preset("Tiến tới", 30, .maskCommand),
-        Preset("Tab mới", 17, .maskCommand),
-        Preset("Đóng tab", 13, .maskCommand),
-        Preset("Mở lại tab vừa đóng", 17, [.maskShift, .maskCommand]),
-        Preset("Tab tiếp theo", 48, .maskControl),
-        Preset("Tab trước", 48, [.maskControl, .maskShift]),
+    static var common: [Preset] { [
+
+        Preset(tr("Copy", "Sao chép"), 8, .maskCommand),
+        Preset(tr("Paste", "Dán"), 9, .maskCommand),
+        Preset(tr("Cut", "Cắt"), 7, .maskCommand),
+        Preset(tr("Undo", "Hoàn tác"), 6, .maskCommand),
+        Preset(tr("Redo", "Làm lại"), 6, [.maskShift, .maskCommand]),
+        Preset(tr("Select all", "Chọn tất cả"), 0, .maskCommand),
+        Preset(tr("Save", "Lưu"), 1, .maskCommand),
+        Preset(tr("Find", "Tìm"), 3, .maskCommand),
+        Preset(tr("Back", "Quay lại"), 33, .maskCommand),
+        Preset(tr("Forward", "Tiến tới"), 30, .maskCommand),
+        Preset(tr("New tab", "Tab mới"), 17, .maskCommand),
+        Preset(tr("Close tab", "Đóng tab"), 13, .maskCommand),
+        Preset(tr("Reopen closed tab", "Mở lại tab vừa đóng"), 17, [.maskShift, .maskCommand]),
+        Preset(tr("Next tab", "Tab tiếp theo"), 48, .maskControl),
+        Preset(tr("Previous tab", "Tab trước"), 48, [.maskControl, .maskShift]),
         Preset("Spotlight", 49, .maskCommand),
-        Preset("Chụp một vùng màn hình", 21, [.maskShift, .maskCommand]),
-        Preset("Công cụ chụp màn hình", 23, [.maskShift, .maskCommand]),
-        Preset("Khoá màn hình", 12, [.maskControl, .maskCommand]),
-        Preset("Phóng to", 24, .maskCommand),
-        Preset("Thu nhỏ", 27, .maskCommand),
-    ]
+        Preset(tr("Capture part of the screen", "Chụp một vùng màn hình"), 21, [.maskShift, .maskCommand]),
+        Preset(tr("Screenshot tool", "Công cụ chụp màn hình"), 23, [.maskShift, .maskCommand]),
+        Preset(tr("Lock screen", "Khoá màn hình"), 12, [.maskControl, .maskCommand]),
+        Preset(tr("Zoom in", "Phóng to"), 24, .maskCommand),
+        Preset(tr("Zoom out", "Thu nhỏ"), 27, .maskCommand),
+    ] }
 
     static let keys: [Preset] = [
         (122, "F1"), (120, "F2"), (99, "F3"), (118, "F4"), (96, "F5"), (97, "F6"),
@@ -259,25 +269,25 @@ private struct ActionPicker: View {
                 Button(MouseAction.native.title) { action = .native }
             }
             Divider()
-            Menu("Hệ thống") {
+            Menu(tr("System", "Hệ thống")) {
                 ForEach(SystemAction.allCases, id: \.self) { system in
                     Button(system.title) { action = .system(system) }
                 }
             }
-            Menu("Phím tắt thông dụng") {
+            Menu(tr("Common shortcuts", "Phím tắt thông dụng")) {
                 ForEach(Preset.common, id: \.title) { preset in
                     Button("\(preset.title)   \(preset.shortcut.display)") { action = .shortcut(preset.shortcut) }
                 }
             }
-            Menu("Phím đơn") {
+            Menu(tr("Single keys", "Phím đơn")) {
                 ForEach(Preset.keys, id: \.title) { preset in
                     Button(preset.title) { action = .shortcut(preset.shortcut) }
                 }
             }
             Divider()
-            Button("Ghi phím tắt…", action: record)
+            Button(tr("Record shortcut…", "Ghi phím tắt…"), action: record)
         } label: {
-            Text(recording ? "Nhấn phím tắt… (Esc để huỷ)" : action?.title ?? placeholder)
+            Text(recording ? tr("Press a shortcut… (Esc to cancel)", "Nhấn phím tắt… (Esc để huỷ)") : action?.title ?? placeholder)
         }
         .frame(width: 250)
         .onDisappear {

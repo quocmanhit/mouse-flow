@@ -35,11 +35,11 @@ enum SystemAction: String, CaseIterable, Codable {
 
     var title: String {
         switch self {
-        case .showDesktop: "Hiện Desktop"
-        case .previousSpace: "Desktop bên trái"
-        case .nextSpace: "Desktop bên phải"
+        case .showDesktop: tr("Show Desktop", "Hiện Desktop")
+        case .previousSpace: tr("Desktop on the left", "Desktop bên trái")
+        case .nextSpace: tr("Desktop on the right", "Desktop bên phải")
         case .missionControl: "Mission Control"
-        case .appWindows: "Cửa sổ của app"
+        case .appWindows: tr("App windows", "Cửa sổ của app")
         }
     }
 
@@ -77,7 +77,7 @@ enum MouseAction: Codable, Equatable {
         switch self {
         case .shortcut(let shortcut): shortcut.display
         case .system(let action): action.title
-        case .native: "Giữ chức năng gốc"
+        case .native: tr("Keep native behaviour", "Giữ chức năng gốc")
         }
     }
 

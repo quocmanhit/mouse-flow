@@ -19,6 +19,7 @@ Trackpads and Magic Mouse are left untouched.
   system action (Show Desktop, switch Space, Mission Control, App Windows), either for every app or per app.
 - **Native button bypass**: hold a modifier key (⌃ Control by default) while clicking to skip the mapping and get the
   button's original behaviour, e.g. Back/Forward in Chrome.
+- **English and Vietnamese UI**: chosen on first launch, switchable any time from the menu.
 - **Launch at login** from the menu.
 - Close to zero CPU when idle.
 
@@ -53,6 +54,11 @@ Other targets: `make build`, `make app`, `make install`, `make clean`.
 On first launch macOS asks for **Accessibility** access (System Settings → Privacy & Security → Accessibility).
 Once it is granted, MouseFlow starts on its own; there is no need to relaunch it.
 
+### Language
+
+The first launch asks you to pick English or Tiếng Việt. Change it later under **Language / Ngôn ngữ** in the
+menu.
+
 ### Trial run
 
 ```bash
@@ -73,13 +79,12 @@ Click the mouse icon in the menu bar:
 | Hold key to scroll fast / Fast scroll factor | Modifier key and multiplier for fast scrolling |
 | Mouse button settings… | Map buttons for every app or for specific apps |
 | Hold key for native buttons | Modifier key that bypasses button mappings |
+| Language / Ngôn ngữ | Switch between English and Vietnamese |
 | Launch at login | Start MouseFlow with macOS |
-
-The menu labels are currently in Vietnamese; the table above lists them in English.
 
 ### Button mapping notes
 
-- An app's own mapping wins over the "every app" mapping. Choose "keep native behaviour" in an app to opt it out of a
+- An app's own mapping wins over the "every app" mapping. Choose "Keep native behaviour" in an app to opt it out of a
   global mapping.
 - Shortcuts are sent to the frontmost app.
 - If a button is already bound to a system shortcut (for example Mission Control in System Settings → Keyboard
@@ -119,6 +124,7 @@ Sources/MouseFlow/
   Settings.swift        scroll and modifier settings
   SettingsWindow.swift  button mapping window (SwiftUI)
   KeyRecorder.swift     shortcut recorder
+  Localization.swift    English / Vietnamese strings
 Resources/Info.plist
 MouseFlow-Logo/         app icon (.icns, PNG, SVG) and menu bar template icon
 ```

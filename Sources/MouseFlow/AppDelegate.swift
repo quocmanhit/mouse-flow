@@ -11,14 +11,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private var permissionTimer: Timer?
     private var settingsWindow: NSWindow?
 
-    private let speedOptions: [(String, Double)] = [("Chậm", 0.6), ("Vừa", 1.0), ("Nhanh", 1.6), ("Rất nhanh", 2.4)]
-    private let durationOptions: [(String, Double)] = [("Ít", 0.15), ("Vừa", 0.3), ("Nhiều", 0.5)]
-    private let modifierOptions: [(String, Double)] = [
-        ("Tắt", 0),
+    private var speedOptions: [(String, Double)] {
+        [(tr("Slow", "Chậm"), 0.6), (tr("Medium", "Vừa"), 1.0), (tr("Fast", "Nhanh"), 1.6), (tr("Very fast", "Rất nhanh"), 2.4)]
+    }
+    private var durationOptions: [(String, Double)] {
+        [(tr("Low", "Ít"), 0.15), (tr("Medium", "Vừa"), 0.3), (tr("High", "Nhiều"), 0.5)]
+    }
+    private var modifierOptions: [(String, Double)] { [
+        (tr("Off", "Tắt"), 0),
         ("⌥ Option", Double(CGEventFlags.maskAlternate.rawValue)),
         ("⌃ Control", Double(CGEventFlags.maskControl.rawValue)),
         ("⌘ Command", Double(CGEventFlags.maskCommand.rawValue)),
-    ]
+    ] }
     private let dashFactorOptions: [(String, Double)] = [("×2", 2), ("×3", 3), ("×5", 5)]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -27,6 +31,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let menu = NSMenu()
         menu.delegate = self
         statusItem.menu = menu
+        if Language.saved == nil { askLanguage() }
         startWhenTrusted()
         if CommandLine.arguments.contains("--settings") { openSettings() }
         // A trial run quits on its own, so a broken build can never leave the mouse dead.
@@ -72,24 +77,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems()
         if !engine.isRunning {
-            menu.addItem(item("Cần cấp quyền Accessibility…", #selector(openAccessibilitySettings)))
+            menu.addItem(item(tr("Grant Accessibility permission…", "Cần cấp quyền Accessibility…"), #selector(openAccessibilitySettings)))
             menu.addItem(.separator())
         }
-        menu.addItem(item("Cuộn mượt", #selector(toggleSmooth), on: settings.smooth))
-        menu.addItem(item("Đảo chiều cuộn chuột", #selector(toggleReverse), on: settings.reverse))
+        menu.addItem(item(tr("Smooth scrolling", "Cuộn mượt"), #selector(toggleSmooth), on: settings.smooth))
+        menu.addItem(item(tr("Reverse mouse scrolling", "Đảo chiều cuộn chuột"), #selector(toggleReverse), on: settings.reverse))
         menu.addItem(.separator())
-        menu.addItem(submenu("Tốc độ", speedOptions, current: settings.speed, action: #selector(setSpeed(_:))))
-        menu.addItem(submenu("Độ mượt", durationOptions, current: settings.duration, action: #selector(setDuration(_:))))
+        menu.addItem(submenu(tr("Speed", "Tốc độ"), speedOptions, current: settings.speed, action: #selector(setSpeed(_:))))
+        menu.addItem(submenu(tr("Smoothness", "Độ mượt"), durationOptions, current: settings.duration, action: #selector(setDuration(_:))))
         let dash = Double(settings.dashModifier?.rawValue ?? 0)
-        menu.addItem(submenu("Giữ phím để cuộn nhanh", modifierOptions, current: dash, action: #selector(setDashModifier(_:))))
-        menu.addItem(submenu("Tốc độ khi giữ phím", dashFactorOptions, current: settings.dashFactor, action: #selector(setDashFactor(_:))))
+        menu.addItem(submenu(tr("Hold key to scroll fast", "Giữ phím để cuộn nhanh"), modifierOptions, current: dash, action: #selector(setDashModifier(_:))))
+        menu.addItem(submenu(tr("Fast scroll factor", "Tốc độ khi giữ phím"), dashFactorOptions, current: settings.dashFactor, action: #selector(setDashFactor(_:))))
         menu.addItem(.separator())
-        menu.addItem(item("Cài đặt nút chuột…", #selector(openSettings)))
+        menu.addItem(item(tr("Mouse button settings…", "Cài đặt nút chuột…"), #selector(openSettings)))
         let bypass = Double(settings.bypassModifier?.rawValue ?? 0)
-        menu.addItem(submenu("Giữ phím để dùng nút gốc", modifierOptions, current: bypass, action: #selector(setBypassModifier(_:))))
+        menu.addItem(submenu(tr("Hold key for native buttons", "Giữ phím để dùng nút gốc"), modifierOptions, current: bypass, action: #selector(setBypassModifier(_:))))
         menu.addItem(.separator())
-        menu.addItem(item("Mở cùng macOS", #selector(toggleLaunchAtLogin), on: SMAppService.mainApp.status == .enabled))
-        let quit = NSMenuItem(title: "Thoát", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        menu.addItem(languageMenu())
+        menu.addItem(item(tr("Launch at login", "Mở cùng macOS"), #selector(toggleLaunchAtLogin), on: SMAppService.mainApp.status == .enabled))
+        let quit = NSMenuItem(title: tr("Quit MouseFlow", "Thoát"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quit.target = NSApp
         menu.addItem(quit)
     }
@@ -111,6 +117,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         }
         parent.submenu = menu
         return parent
+    }
+
+    // The title stays bilingual so the menu can be found whatever language is active.
+    private func languageMenu() -> NSMenuItem {
+        let parent = NSMenuItem(title: "Language / Ngôn ngữ", action: nil, keyEquivalent: "")
+        let menu = NSMenu()
+        for language in Language.allCases {
+            let child = item(language.title, #selector(setLanguage(_:)), on: language == Language.current)
+            child.representedObject = language.rawValue
+            menu.addItem(child)
+        }
+        parent.submenu = menu
+        return parent
+    }
+
+    private func askLanguage() {
+        NSApp.activate()
+        let alert = NSAlert()
+        alert.messageText = "Choose a language / Chọn ngôn ngữ"
+        alert.informativeText = "You can change it later from the menu bar.\nCó thể đổi lại trong menu trên thanh menu."
+        for language in Language.allCases { alert.addButton(withTitle: language.title) }
+        let index = alert.runModal().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        Language.saved = Language.allCases.indices.contains(index) ? Language.allCases[index] : .english
+    }
+
+    @objc private func setLanguage(_ sender: NSMenuItem) {
+        guard let raw = sender.representedObject as? String, let language = Language(rawValue: raw) else { return }
+        Language.saved = language
+        // SwiftUI reads strings when the window is built, so rebuild it in the new language.
+        settingsWindow?.close()
+        settingsWindow = nil
     }
 
     @objc private func toggleSmooth() { settings.smooth.toggle() }
