@@ -23,24 +23,56 @@ Trackpads and Magic Mouse are left untouched.
 - **Launch at login** from the menu.
 - Close to zero CPU when idle.
 
+## Screenshots
+
+<p align="center">
+  <img src="docs/images/menu.png" width="396" alt="MouseFlow menu bar menu">
+</p>
+
+<p align="center">
+  <img src="docs/images/button-settings.png" width="760" alt="Mouse button settings window">
+</p>
+
 ## Requirements
 
-- macOS 14 Sonoma or later
-- Xcode Command Line Tools (Swift 5.10+) to build
+- macOS 14 Sonoma or later, on Apple silicon or Intel
+- To build from source: Xcode Command Line Tools (Swift 5.10+)
 
-## Install from a disk image
+## Install
 
-Open `MouseFlow-<version>.dmg` and drag **MouseFlow** into **Applications**. The app is a universal binary (Apple
-silicon and Intel).
+1. **Download** `MouseFlow-<version>.dmg` from the
+   [latest release](https://github.com/quocmanhit/mouse-flow/releases/latest).
+2. **Open the disk image** and drag **MouseFlow** onto the **Applications** shortcut next to it.
+3. **Open MouseFlow** from Applications. The app is not notarized, so the first time macOS says it can't be opened.
+   Go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**, then confirm. Alternatively,
+   clear the quarantine flag in Terminal and open it normally:
 
-The app is not notarized, so on first launch macOS refuses to open it. Open it once from System Settings → Privacy &
-Security → **Open Anyway**, or run:
+   ```bash
+   xattr -dr com.apple.quarantine /Applications/MouseFlow.app
+   ```
 
-```bash
-xattr -dr com.apple.quarantine /Applications/MouseFlow.app
-```
+4. **Pick a language.** The first launch asks for English or Tiếng Việt. You can change it later under
+   **Language / Ngôn ngữ** in the menu.
 
-## Build and install
+   <img src="docs/images/language-prompt.png" width="260" alt="Language prompt on first launch">
+
+5. **Grant Accessibility access.** macOS asks for it right after; otherwise open **System Settings → Privacy &
+   Security → Accessibility** and turn **MouseFlow** on. MouseFlow starts working as soon as access is granted, with no
+   relaunch needed. Until then the menu shows *Grant Accessibility permission…*.
+6. **Set it up** from the mouse icon in the menu bar: adjust scrolling, open **Mouse button settings…** to map
+   buttons, and turn on **Launch at login** if you want it to start with macOS.
+
+### Update
+
+Quit MouseFlow from its menu, then drag the new version into Applications and replace the old one. Settings are kept.
+
+### Uninstall
+
+1. Quit MouseFlow from its menu and move `/Applications/MouseFlow.app` to the Trash.
+2. Remove it from **System Settings → Privacy & Security → Accessibility**.
+3. Optionally delete its settings: `defaults delete com.quocmanh.mouseflow`
+
+## Build from source
 
 ```bash
 git clone git@github.com:quocmanhit/mouse-flow.git
@@ -71,15 +103,6 @@ Builds the arm64 and x86_64 slices, merges them with `lipo`, signs the app and w
 with an Applications shortcut for drag-and-drop install. The version comes from `CFBundleShortVersionString` in
 `Resources/Info.plist`.
 
-### Permissions
-
-On first launch macOS asks for **Accessibility** access (System Settings → Privacy & Security → Accessibility).
-Once it is granted, MouseFlow starts on its own; there is no need to relaunch it.
-
-### Language
-
-The first launch asks you to pick English or Tiếng Việt. Change it later under **Language / Ngôn ngữ** in the
-menu.
 
 ### Trial run
 
@@ -148,5 +171,6 @@ Sources/MouseFlow/
   KeyRecorder.swift     shortcut recorder
   Localization.swift    English / Vietnamese strings
 Resources/Info.plist
+docs/images/            README screenshots
 MouseFlow-Logo/         app icon (.icns, PNG, SVG) and menu bar template icon
 ```
