@@ -136,13 +136,8 @@ final class MappingStore: ObservableObject {
     }
 
     // An app's own mapping wins over the default; nil means the button keeps its normal behaviour.
-    func shortcut(button: Int, bundleID: String?) -> Shortcut? {
+    func action(button: Int, bundleID: String?) -> MouseAction? {
         let key = String(button)
-        let action = bundleID.flatMap { mappings.apps[$0]?.buttons[key] } ?? mappings.defaults[key]
-        switch action {
-        case .shortcut(let shortcut): return shortcut
-        case .system(let system): return system.shortcut
-        case .native, nil: return nil
-        }
+        return bundleID.flatMap { mappings.apps[$0]?.buttons[key] } ?? mappings.defaults[key]
     }
 }

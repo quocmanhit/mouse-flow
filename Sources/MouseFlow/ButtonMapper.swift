@@ -61,11 +61,28 @@ final class ButtonMapper {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return pass
         case .otherMouseDown:
-            // Keystrokes go to the focused app, so that is the app whose mapping applies.
-            let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
-            // Leave buttons alone in our own settings window so presses can be identified there.
-            guard !bypass, bundleID != Bundle.main.bundleIdentifier,
-                  let shortcut = store.shortcut(button: Int(button), bundleID: bundleID) else { return pass }
+            let ownPID = ProcessInfo.processInfo.processIdentifier
+            let tagged = pid_t(event.getIntegerValueField(.eventTargetUnixProcessID))
+            let target = tagged != 0 ? tagged : Self.windowOwner(at: event.location) ?? 0
+            // Presses on our own settings window stay native so they can be identified there.
+            guard !bypass, target != ownPID else { return pass }
+            // Keystrokes go to the focused app, so that is the app whose mapping applies. While our settings
+            // window has focus, a press over another app's window uses that app's mapping instead.
+            let front = NSWorkspace.shared.frontmostApplication
+            let ownFront = front?.processIdentifier == ownPID
+            let bundleID = ownFront ? NSRunningApplication(processIdentifier: target)?.bundleIdentifier : front?.bundleIdentifier
+            guard let action = store.action(button: Int(button), bundleID: bundleID) else { return pass }
+            let shortcut: Shortcut
+            switch action {
+            case .system(let system):
+                shortcut = system.shortcut
+            case .shortcut(let appShortcut):
+                // It would land in our settings window rather than the app under the cursor.
+                if ownFront { return pass }
+                shortcut = appShortcut
+            case .native:
+                return pass
+            }
             swallowed.insert(button)
             send(shortcut)
             return nil
@@ -76,6 +93,18 @@ final class ButtonMapper {
         default:
             return pass
         }
+    }
+
+    // Topmost normal window under the pointer, for events that arrive without a target app.
+    private static func windowOwner(at point: CGPoint) -> pid_t? {
+        let options: CGWindowListOption = [.optionOnScreenOnly, .excludeDesktopElements]
+        guard let windows = CGWindowListCopyWindowInfo(options, kCGNullWindowID) as? [[String: Any]] else { return nil }
+        for window in windows where window[kCGWindowLayer as String] as? Int == 0 {
+            guard let bounds = window[kCGWindowBounds as String] as? NSDictionary,
+                  let rect = CGRect(dictionaryRepresentation: bounds as CFDictionary), rect.contains(point) else { continue }
+            return window[kCGWindowOwnerPID as String] as? pid_t
+        }
+        return nil
     }
 
     // Real arrow/F-key presses carry these flags, and system shortcuts like Ctrl+← only match with them.
