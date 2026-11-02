@@ -15,6 +15,7 @@ final class Settings {
             Key.duration: 0.3,
             Key.dashModifier: Int(CGEventFlags.maskAlternate.rawValue),
             Key.dashFactor: 3.0,
+            Key.bypassModifier: Int(CGEventFlags.maskControl.rawValue),
         ])
     }
 
@@ -25,6 +26,15 @@ final class Settings {
             return raw == 0 ? nil : CGEventFlags(rawValue: UInt64(raw))
         }
         set { defaults.set(Int(newValue?.rawValue ?? 0), forKey: Key.dashModifier) }
+    }
+
+    // Held while clicking to skip button mappings and keep the button's own behaviour; nil turns it off.
+    var bypassModifier: CGEventFlags? {
+        get {
+            let raw = defaults.integer(forKey: Key.bypassModifier)
+            return raw == 0 ? nil : CGEventFlags(rawValue: UInt64(raw))
+        }
+        set { defaults.set(Int(newValue?.rawValue ?? 0), forKey: Key.bypassModifier) }
     }
 
     var dashFactor: Double {
@@ -59,5 +69,6 @@ final class Settings {
         static let duration = "duration"
         static let dashModifier = "dashModifier"
         static let dashFactor = "dashFactor"
+        static let bypassModifier = "bypassModifier"
     }
 }

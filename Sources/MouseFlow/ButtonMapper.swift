@@ -4,13 +4,15 @@ final class ButtonMapper {
     private static let syntheticMarker: Int64 = 0x4D46_4B42
 
     private let store: MappingStore
+    private let settings: Settings
     private var tap: CFMachPort?
     private var tapSource: CFRunLoopSource?
     // Buttons whose press we replaced, so the matching drag/release is swallowed too.
     private var swallowed = Set<Int64>()
 
-    init(store: MappingStore) {
+    init(store: MappingStore, settings: Settings) {
         self.store = store
+        self.settings = settings
     }
 
     @discardableResult
@@ -51,6 +53,9 @@ final class ButtonMapper {
     private func handle(type: CGEventType, event: CGEvent) -> Unmanaged<CGEvent>? {
         let pass = Unmanaged.passUnretained(event)
         let button = event.getIntegerValueField(.mouseEventButtonNumber)
+        // The bypass key only selects native behaviour, so the app must not see it as a modified click.
+        let bypass = settings.bypassModifier.map { event.flags.contains($0) } ?? false
+        if bypass, let key = settings.bypassModifier { event.flags.remove(key) }
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
@@ -59,7 +64,7 @@ final class ButtonMapper {
             // Keystrokes go to the focused app, so that is the app whose mapping applies.
             let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
             // Leave buttons alone in our own settings window so presses can be identified there.
-            guard bundleID != Bundle.main.bundleIdentifier,
+            guard !bypass, bundleID != Bundle.main.bundleIdentifier,
                   let shortcut = store.shortcut(button: Int(button), bundleID: bundleID) else { return pass }
             swallowed.insert(button)
             send(shortcut)

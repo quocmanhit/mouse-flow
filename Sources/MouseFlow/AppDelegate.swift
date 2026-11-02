@@ -6,14 +6,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let settings = Settings()
     private lazy var engine = ScrollEngine(settings: settings)
     private let store = MappingStore()
-    private lazy var buttons = ButtonMapper(store: store)
+    private lazy var buttons = ButtonMapper(store: store, settings: settings)
     private var statusItem: NSStatusItem!
     private var permissionTimer: Timer?
     private var settingsWindow: NSWindow?
 
     private let speedOptions: [(String, Double)] = [("Chậm", 0.6), ("Vừa", 1.0), ("Nhanh", 1.6), ("Rất nhanh", 2.4)]
     private let durationOptions: [(String, Double)] = [("Ít", 0.15), ("Vừa", 0.3), ("Nhiều", 0.5)]
-    private let dashOptions: [(String, Double)] = [
+    private let modifierOptions: [(String, Double)] = [
         ("Tắt", 0),
         ("⌥ Option", Double(CGEventFlags.maskAlternate.rawValue)),
         ("⌃ Control", Double(CGEventFlags.maskControl.rawValue)),
@@ -70,10 +70,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         menu.addItem(submenu("Tốc độ", speedOptions, current: settings.speed, action: #selector(setSpeed(_:))))
         menu.addItem(submenu("Độ mượt", durationOptions, current: settings.duration, action: #selector(setDuration(_:))))
         let dash = Double(settings.dashModifier?.rawValue ?? 0)
-        menu.addItem(submenu("Giữ phím để cuộn nhanh", dashOptions, current: dash, action: #selector(setDashModifier(_:))))
+        menu.addItem(submenu("Giữ phím để cuộn nhanh", modifierOptions, current: dash, action: #selector(setDashModifier(_:))))
         menu.addItem(submenu("Tốc độ khi giữ phím", dashFactorOptions, current: settings.dashFactor, action: #selector(setDashFactor(_:))))
         menu.addItem(.separator())
         menu.addItem(item("Cài đặt nút chuột…", #selector(openSettings)))
+        let bypass = Double(settings.bypassModifier?.rawValue ?? 0)
+        menu.addItem(submenu("Giữ phím để dùng nút gốc", modifierOptions, current: bypass, action: #selector(setBypassModifier(_:))))
         menu.addItem(.separator())
         menu.addItem(item("Mở cùng macOS", #selector(toggleLaunchAtLogin), on: SMAppService.mainApp.status == .enabled))
         let quit = NSMenuItem(title: "Thoát", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
@@ -115,6 +117,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func setDashModifier(_ sender: NSMenuItem) {
         guard let value = sender.representedObject as? Double else { return }
         settings.dashModifier = value == 0 ? nil : CGEventFlags(rawValue: UInt64(value))
+    }
+
+    @objc private func setBypassModifier(_ sender: NSMenuItem) {
+        guard let value = sender.representedObject as? Double else { return }
+        settings.bypassModifier = value == 0 ? nil : CGEventFlags(rawValue: UInt64(value))
     }
 
     @objc private func setDashFactor(_ sender: NSMenuItem) {
