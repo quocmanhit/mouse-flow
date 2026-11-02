@@ -2,7 +2,7 @@ import AppKit
 import ApplicationServices
 import ServiceManagement
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWindowDelegate {
     private let settings = Settings()
     private lazy var engine = ScrollEngine(settings: settings)
     private let store = MappingStore()
@@ -179,9 +179,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func openSettings() {
         if settingsWindow == nil {
             settingsWindow = SettingsWindow.make(store: store)
+            settingsWindow?.delegate = self
         }
-        NSApp.activate()
-        settingsWindow?.makeKeyAndOrderFront(nil)
+        // A menu bar-only app may be refused focus while another app is active, leaving the window behind it.
+        // Acting as a regular app while the window is open lets it come to the front reliably.
+        NSApp.setActivationPolicy(.regular)
+        // Wait for the status menu to finish closing, or the activation can be lost.
+        DispatchQueue.main.async {
+            NSApp.activate()
+            self.settingsWindow?.makeKeyAndOrderFront(nil)
+            self.settingsWindow?.orderFrontRegardless()
+        }
+    }
+
+    func windowWillClose(_ notification: Notification) {
+        guard notification.object as? NSWindow === settingsWindow else { return }
+        NSApp.setActivationPolicy(.accessory)
     }
 
     @objc private func openAccessibilitySettings() {

@@ -4,10 +4,14 @@ import UniformTypeIdentifiers
 
 enum SettingsWindow {
     static func make(store: MappingStore) -> NSWindow {
-        let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(store: store)))
+        let hosting = NSHostingController(rootView: SettingsView(store: store))
+        // Otherwise SwiftUI resizes the window after it is on screen, so it opens off-centre and jumps.
+        hosting.sizingOptions = []
+        let window = NSWindow(contentViewController: hosting)
         window.title = tr("Mouse Buttons", "Nút chuột")
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.isReleasedWhenClosed = false
+        window.setContentSize(SettingsView.size)
         window.center()
         return window
     }
@@ -27,6 +31,8 @@ private var mouseButtons: [(number: Int, title: String)] {
 }
 
 private struct SettingsView: View {
+    static let size = NSSize(width: 760, height: 380)
+
     @ObservedObject var store: MappingStore
     @State private var selection: Target? = .defaults
     @State private var pressed: Int?
@@ -42,7 +48,7 @@ private struct SettingsView: View {
             Divider()
             detail.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .frame(width: 760, height: 380)
+        .frame(width: Self.size.width, height: Self.size.height)
         .onAppear(perform: watchButtons)
         .onDisappear {
             if let buttonMonitor { NSEvent.removeMonitor(buttonMonitor) }
