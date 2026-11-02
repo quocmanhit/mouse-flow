@@ -28,6 +28,18 @@ Trackpads and Magic Mouse are left untouched.
 - macOS 14 Sonoma or later
 - Xcode Command Line Tools (Swift 5.10+) to build
 
+## Install from a disk image
+
+Open `MouseFlow-<version>.dmg` and drag **MouseFlow** into **Applications**. The app is a universal binary (Apple
+silicon and Intel).
+
+The app is not notarized, so on first launch macOS refuses to open it. Open it once from System Settings → Privacy &
+Security → **Open Anyway**, or run:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/MouseFlow.app
+```
+
 ## Build and install
 
 ```bash
@@ -48,6 +60,16 @@ make run SIGN_ID=-
 ```
 
 Other targets: `make build`, `make app`, `make install`, `make clean`.
+
+### Package a disk image
+
+```bash
+make dist
+```
+
+Builds the arm64 and x86_64 slices, merges them with `lipo`, signs the app and writes `build/MouseFlow-<version>.dmg`
+with an Applications shortcut for drag-and-drop install. The version comes from `CFBundleShortVersionString` in
+`Resources/Info.plist`.
 
 ### Permissions
 
