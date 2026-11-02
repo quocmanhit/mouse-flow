@@ -9,25 +9,28 @@
 ## Features
 
 - **Smooth scrolling** for notched mouse wheels, with adjustable speed and smoothness.
-- **Reverse scroll direction** for the mouse only, so the trackpad keeps natural scrolling.
-- **Fast scroll**: hold a modifier key (⌥ Option by default) to multiply the scroll distance by ×2, ×3 or ×5.
+- **Reverse scroll direction** for the mouse only, separately for vertical and horizontal scrolling, so the trackpad
+  keeps natural scrolling.
+- **Fast scroll**: hold a modifier key (⌥ Option by default) to multiply the scroll distance by an adjustable factor.
 - **Per-app button mapping**: assign the middle button and side buttons (buttons 2–4) to a keyboard shortcut or a
   system action (Show Desktop, switch Space, Mission Control, App Windows), either for every app or per app.
+- **Excluded apps**: pick apps where MouseFlow does nothing at all, for scrolling and buttons alike.
 - **Native button bypass**: hold a modifier key (⌃ Control by default) while clicking to skip the mapping and get the
   button's original behaviour, e.g. Back/Forward in Chrome.
-- **English and Vietnamese UI**: chosen on first launch, switchable any time from the menu.
-- **Launch at login** from the menu.
+- **All apps override**: hold another modifier key (⌥ Option by default) while clicking to use the All apps mappings
+  instead of the current app's own.
+- **English and Vietnamese UI**: chosen on first launch, switchable any time from the menu or Settings.
+- **Settings window** with Scrolling, Buttons, Excluded apps and General tabs; the menu keeps only the everyday toggles.
+- **Launch at login** from the menu or Settings.
 - Close to zero CPU when idle.
 
 ## Screenshots
 
-<p align="center">
-  <img src="docs/images/menu.png" width="396" alt="MouseFlow menu bar menu">
-</p>
-
-<p align="center">
-  <img src="docs/images/button-settings.png" width="760" alt="Mouse button settings window">
-</p>
+| Scrolling | Buttons |
+| --- | --- |
+| <img src="docs/images/settings-scrolling.png" width="420" alt="Scrolling settings"> | <img src="docs/images/settings-buttons.png" width="420" alt="Button mapping settings"> |
+| **Excluded apps** | **Menu bar** |
+| <img src="docs/images/settings-excluded.png" width="420" alt="Excluded apps settings"> | <img src="docs/images/menu.png" width="280" alt="MouseFlow menu bar menu"> |
 
 ## Requirements
 
@@ -54,8 +57,8 @@ macOS 14 Sonoma or later, on Apple silicon or Intel.
 5. **Grant Accessibility access.** macOS asks for it right after; otherwise open **System Settings → Privacy &
    Security → Accessibility** and turn **MouseFlow** on. MouseFlow starts working as soon as access is granted, with no
    relaunch needed. Until then the menu shows *Grant Accessibility permission…*.
-6. **Set it up** from the mouse icon in the menu bar: adjust scrolling, open **Mouse button settings…** to map
-   buttons, and turn on **Launch at login** if you want it to start with macOS.
+6. **Set it up** from the mouse icon in the menu bar: open **Settings…** (⌘,) to tune scrolling, map buttons and
+   exclude apps, and turn on **Launch at login** if you want it to start with macOS.
 
 ### Update
 
@@ -70,7 +73,7 @@ Quit MouseFlow from its menu, then drag the new version into Applications and re
 ## Button mapping tips
 
 - An app's own mapping wins over the "every app" mapping. Choose "Keep native behaviour" in an app to opt it out of a
-  global mapping.
+  global mapping. To switch MouseFlow off for an app entirely, add it under **Excluded apps**.
 - Shortcuts are sent to the frontmost app.
 - If a button is already bound to a system shortcut (for example Mission Control in System Settings → Keyboard
   Shortcuts), unbind it there first, because macOS handles those before MouseFlow sees the click.
@@ -81,6 +84,9 @@ Quit MouseFlow from its menu, then drag the new version into Applications and re
 
 - Don't run MouseFlow together with Mos or another smooth-scrolling app: both event taps compete for the same wheel
   events.
+- Excluded apps are matched by bundle ID of the app that receives the scroll, or for clicks the app under the pointer
+  or the frontmost app; helper processes with their own
+  bundle ID are not covered by their parent app's entry.
 - Mappings apply to every connected mouse; MouseFlow can't tell devices apart.
 
 ## Build from source
