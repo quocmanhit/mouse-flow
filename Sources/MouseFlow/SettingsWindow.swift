@@ -1,19 +1,58 @@
 import AppKit
 import SwiftUI
-import UniformTypeIdentifiers
+
+enum SettingsTab: Hashable {
+    case scrolling, buttons, excludedApps, general
+}
+
+final class SettingsNav: ObservableObject {
+    @Published var tab = SettingsTab.scrolling
+    // Bumped on every language change to rebuild the tab views, which otherwise keep their old strings.
+    @Published var languageRevision = 0
+}
 
 enum SettingsWindow {
-    static func make(store: MappingStore) -> NSWindow {
-        let hosting = NSHostingController(rootView: SettingsView(store: store))
+    static let size = NSSize(width: 760, height: 480)
+    static var title: String { tr("Settings", "Cài đặt") }
+
+    static func make(store: MappingStore, settings: Settings, nav: SettingsNav, onLanguageChange: @escaping (Language) -> Void) -> NSWindow {
+        let root = SettingsRoot(store: store, settings: settings, nav: nav, onLanguageChange: onLanguageChange)
+        let hosting = NSHostingController(rootView: root)
         // Otherwise SwiftUI resizes the window after it is on screen, so it opens off-centre and jumps.
         hosting.sizingOptions = []
         let window = NSWindow(contentViewController: hosting)
-        window.title = tr("Mouse Buttons", "Nút chuột")
+        window.title = title
         window.styleMask = [.titled, .closable, .miniaturizable]
         window.isReleasedWhenClosed = false
-        window.setContentSize(SettingsView.size)
+        window.setContentSize(size)
         window.center()
         return window
+    }
+}
+
+private struct SettingsRoot: View {
+    let store: MappingStore
+    let settings: Settings
+    @ObservedObject var nav: SettingsNav
+    let onLanguageChange: (Language) -> Void
+
+    var body: some View {
+        TabView(selection: $nav.tab) {
+            ScrollingTab(settings: settings)
+                .tabItem { Label(tr("Scrolling", "Cuộn"), systemImage: "arrow.up.and.down") }
+                .tag(SettingsTab.scrolling)
+            ButtonsTab(settings: settings, store: store)
+                .tabItem { Label(tr("Buttons", "Nút chuột"), systemImage: "computermouse") }
+                .tag(SettingsTab.buttons)
+            ExcludedAppsTab(settings: settings)
+                .tabItem { Label(tr("Excluded apps", "App bị loại trừ"), systemImage: "nosign") }
+                .tag(SettingsTab.excludedApps)
+            GeneralTab(onLanguageChange: onLanguageChange)
+                .tabItem { Label(tr("General", "Chung"), systemImage: "gearshape") }
+                .tag(SettingsTab.general)
+        }
+        .id(nav.languageRevision)
+        .frame(width: SettingsWindow.size.width, height: SettingsWindow.size.height)
     }
 }
 
@@ -30,9 +69,8 @@ private var mouseButtons: [(number: Int, title: String)] {
     ]
 }
 
-private struct SettingsView: View {
-    static let size = NSSize(width: 760, height: 380)
-
+private struct ButtonsTab: View {
+    @ObservedObject var settings: Settings
     @ObservedObject var store: MappingStore
     @State private var selection: Target? = .defaults
     @State private var pressed: Int?
@@ -48,7 +86,6 @@ private struct SettingsView: View {
             Divider()
             detail.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .frame(width: Self.size.width, height: Self.size.height)
         .onAppear(perform: watchButtons)
         .onDisappear {
             if let buttonMonitor { NSEvent.removeMonitor(buttonMonitor) }
@@ -69,21 +106,7 @@ private struct SettingsView: View {
             }
             Divider()
             HStack(spacing: 2) {
-                Menu {
-                    ForEach(runningApps, id: \.bundleIdentifier) { app in
-                        Button(app.localizedName ?? app.bundleIdentifier!) {
-                            add(bundleID: app.bundleIdentifier!, name: app.localizedName ?? app.bundleIdentifier!)
-                        }
-                    }
-                    Divider()
-                    Button(tr("Choose another app…", "Chọn app khác…"), action: pickApp)
-                } label: {
-                    Image(systemName: "plus")
-                }
-                .menuStyle(.borderlessButton)
-                .menuIndicator(.hidden)
-                .fixedSize()
-                .help(tr("Add app", "Thêm app"))
+                AddAppMenu(skipping: Set(store.mappings.apps.keys), onPick: add)
                 Button {
                     if case .app(let id) = selection {
                         store.mappings.apps[id] = nil
@@ -121,6 +144,17 @@ private struct SettingsView: View {
             }
             .background(RoundedRectangle(cornerRadius: 8).fill(Color(nsColor: .controlBackgroundColor)))
             .overlay(RoundedRectangle(cornerRadius: 8).stroke(Color(nsColor: .separatorColor)))
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
+                holdKeyRow(
+                    tr("Hold key for native buttons", "Giữ phím để dùng nút gốc"),
+                    modifierBinding(get: { settings.bypassModifier }, set: { settings.bypassModifier = $0 })
+                )
+                holdKeyRow(
+                    tr("Hold key for All apps mappings", "Giữ phím để dùng thiết lập Mọi app"),
+                    modifierBinding(get: { settings.defaultsModifier }, set: { settings.defaultsModifier = $0 })
+                )
+            }
+            .padding(.horizontal, 12)
             Text(tr(
                 "Press a mouse button to see which row it is. F-keys may act as media keys; hold fn while recording, or pick one under Single keys.",
                 "Bấm một nút trên chuột để xem nó là dòng nào. Phím F trên bàn phím có thể đang là phím media; giữ fn khi ghi, hoặc chọn trong Phím đơn."
@@ -129,6 +163,13 @@ private struct SettingsView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(20)
+    }
+
+    private func holdKeyRow(_ title: String, _ selection: Binding<Int>) -> some View {
+        GridRow {
+            Text(title)
+            ModifierPicker(title: title, selection: selection).labelsHidden().frame(width: 250)
+        }
     }
 
     private var title: String {
@@ -172,26 +213,11 @@ private struct SettingsView: View {
         )
     }
 
-    private var runningApps: [NSRunningApplication] {
-        NSWorkspace.shared.runningApplications
-            .filter { $0.activationPolicy == .regular && $0.bundleIdentifier != nil }
-            .filter { store.mappings.apps[$0.bundleIdentifier!] == nil && $0.bundleIdentifier != Bundle.main.bundleIdentifier }
-            .sorted { ($0.localizedName ?? "").localizedCompare($1.localizedName ?? "") == .orderedAscending }
-    }
-
     private func add(bundleID: String, name: String) {
         if store.mappings.apps[bundleID] == nil {
             store.mappings.apps[bundleID] = AppMapping(name: name)
         }
         selection = .app(bundleID)
-    }
-
-    private func pickApp() {
-        let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.application]
-        panel.directoryURL = URL(fileURLWithPath: "/Applications")
-        guard panel.runModal() == .OK, let url = panel.url, let bundleID = Bundle(url: url)?.bundleIdentifier else { return }
-        add(bundleID: bundleID, name: FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: ""))
     }
 
     private func watchButtons() {
@@ -206,7 +232,7 @@ private struct SettingsView: View {
     }
 }
 
-private struct AppIcon: View {
+struct AppIcon: View {
     let bundleID: String
 
     var body: some View {

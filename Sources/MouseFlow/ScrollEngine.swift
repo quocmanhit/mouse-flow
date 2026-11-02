@@ -14,6 +14,7 @@ final class ScrollEngine: NSObject {
     private var targetPID: pid_t = 0
     private var pendingX = 0.0, pendingY = 0.0
     private var carryX = 0.0, carryY = 0.0
+    private lazy var exclusions = ExclusionCache(settings: settings)
 
     init(settings: Settings) {
         self.settings = settings
@@ -75,20 +76,22 @@ final class ScrollEngine: NSObject {
               event.getIntegerValueField(.scrollWheelEventIsContinuous) == 0
         else { return pass }
 
+        let pid = pid_t(event.getIntegerValueField(.eventTargetUnixProcessID))
+        if exclusions.isExcluded(pid: pid) { return pass }
+
         guard settings.smooth else {
-            if settings.reverse { Self.invert(event) }
+            Self.invert(event, settings: settings)
             return pass
         }
 
         // The glide is delivered straight to the app under the cursor; without one, keep the original.
-        let pid = pid_t(event.getIntegerValueField(.eventTargetUnixProcessID))
         guard pid != 0, let copy = event.copy() else { return pass }
         if pid != targetPID {
             pendingX = 0
             pendingY = 0
         }
 
-        var factor = settings.reverse ? -1.0 : 1.0
+        var factor = 1.0
         if let dash = settings.dashModifier, event.flags.contains(dash) {
             factor *= settings.dashFactor
             // Apps give Option/Control/Command+scroll their own meaning, so hide the key from them.
@@ -102,6 +105,9 @@ final class ScrollEngine: NSObject {
         if event.flags.contains(.maskShift), dx == 0 {
             (dx, dy) = (dy, 0)
         }
+        // Reversal follows the output axis, so it is applied after the Shift swap.
+        if settings.reverseVertical { dy = -dy }
+        if settings.reverseHorizontal { dx = -dx }
         pendingY = accumulate(pendingY, dy)
         pendingX = accumulate(pendingX, dx)
         startAnimating()
@@ -197,15 +203,24 @@ final class ScrollEngine: NSObject {
     }
 
     // Read every field before writing: setting one delta field can recompute the others.
-    private static func invert(_ event: CGEvent) {
-        let ints: [CGEventField] = [
-            .scrollWheelEventDeltaAxis1, .scrollWheelEventDeltaAxis2,
-            .scrollWheelEventPointDeltaAxis1, .scrollWheelEventPointDeltaAxis2,
+    private static func invert(_ event: CGEvent, settings: Settings) {
+        // With Shift held and no horizontal delta, the app turns the vertical wheel into horizontal movement.
+        let shifted = event.flags.contains(.maskShift)
+            && event.getIntegerValueField(.scrollWheelEventDeltaAxis2) == 0
+            && event.getIntegerValueField(.scrollWheelEventPointDeltaAxis2) == 0
+        let axis1 = shifted ? settings.reverseHorizontal : settings.reverseVertical
+        let axis2 = shifted ? settings.reverseVertical : settings.reverseHorizontal
+        guard axis1 || axis2 else { return }
+        let ints: [(CGEventField, Bool)] = [
+            (.scrollWheelEventDeltaAxis1, axis1), (.scrollWheelEventPointDeltaAxis1, axis1),
+            (.scrollWheelEventDeltaAxis2, axis2), (.scrollWheelEventPointDeltaAxis2, axis2),
         ]
-        let doubles: [CGEventField] = [.scrollWheelEventFixedPtDeltaAxis1, .scrollWheelEventFixedPtDeltaAxis2]
-        let intValues = ints.map { event.getIntegerValueField($0) }
-        let doubleValues = doubles.map { event.getDoubleValueField($0) }
-        for (field, value) in zip(ints, intValues) { event.setIntegerValueField(field, value: -value) }
-        for (field, value) in zip(doubles, doubleValues) { event.setDoubleValueField(field, value: -value) }
+        let doubles: [(CGEventField, Bool)] = [
+            (.scrollWheelEventFixedPtDeltaAxis1, axis1), (.scrollWheelEventFixedPtDeltaAxis2, axis2),
+        ]
+        let intValues = ints.map { event.getIntegerValueField($0.0) }
+        let doubleValues = doubles.map { event.getDoubleValueField($0.0) }
+        for (index, field) in ints.enumerated() where field.1 { event.setIntegerValueField(field.0, value: -intValues[index]) }
+        for (index, field) in doubles.enumerated() where field.1 { event.setDoubleValueField(field.0, value: -doubleValues[index]) }
     }
 }
